@@ -49,10 +49,12 @@ jobs:
           - name: MSVC
             version: 2022
             executable: cl
+            platform-toolset: v143
             toolset: "14.44"
           - name: MSVC
             version: 2026
             executable: cl
+            platform-toolset: v145
             toolset: "14.51"
         cxx-version: [11, 14, 17, 20, 23, 26]
         exclude:
@@ -105,7 +107,7 @@ jobs:
           key: ${{ matrix.cxx-version }}-${{ matrix.build-type }}-${{ matrix.compiler.name }}-${{ matrix.compiler.version }}${{ matrix.compiler.stdlib && format('-{0}', matrix.compiler.stdlib) || '' }}-${{ matrix.os.name }}-${{ matrix.os.version }}
       - name: Configure
         run: |
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_STANDARD=${{ matrix.cxx-version }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.executable }} ${{ matrix.compiler.stdlib && format('-DCMAKE_CXX_FLAGS=-stdlib={0} -DCMAKE_EXE_LINKER_FLAGS=-stdlib={0}', matrix.compiler.stdlib) || '' }} -DYK_CATS_CI=ON -Bbuild .
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_STANDARD=${{ matrix.cxx-version }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.executable }} ${{ matrix.compiler.stdlib && format('-DCMAKE_CXX_FLAGS=-stdlib={0} -DCMAKE_EXE_LINKER_FLAGS=-stdlib={0}', matrix.compiler.stdlib) || '' }} ${{ matrix.compiler.name == 'MSVC' && format('-T {0},version={1}', matrix.compiler.platform-toolset, matrix.compiler.toolset) || '' }} -DYK_CATS_CI=ON -Bbuild .
       - name: Build tests
         run: |
           echo "CPPWARNINGNOTIFIER_LOG_MARKER"
