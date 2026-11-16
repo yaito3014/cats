@@ -10,33 +10,20 @@ endif()
 
 project(yk-cats VERSION 0.0.1 LANGUAGES CXX)
 
-add_library(yk_cats STATIC)
+add_library(yk_cats INTERFACE)
 
-target_compile_features(yk_cats PUBLIC cxx_std_11)
+target_compile_features(yk_cats INTERFACE cxx_std_11)
 
 file(GLOB_RECURSE YK_CATS_PUBLIC_HEADERS CONFIGURE_DEPENDS include/*.hpp)
-file(GLOB_RECURSE YK_CATS_PRIVATE_HEADERS CONFIGURE_DEPENDS src/*.hpp)
-file(GLOB_RECURSE YK_CATS_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 target_sources(
     yk_cats
-    PUBLIC
+    INTERFACE
         FILE_SET yk_cats_public_headers
             TYPE HEADERS
             BASE_DIRS include
             FILES ${YK_CATS_PUBLIC_HEADERS}
 )
-
-target_sources(
-    yk_cats
-    PRIVATE
-        FILE_SET yk_cats_private_headers
-            TYPE HEADERS
-            BASE_DIRS src
-            FILES ${YK_CATS_PRIVATE_HEADERS}
-)
-
-target_sources(yk_cats PRIVATE ${YK_CATS_SOURCES})
 
 set_target_properties(yk_cats PROPERTIES EXPORT_NAME cats)
 add_library(yk::cats ALIAS yk_cats)
@@ -81,6 +68,7 @@ if(YK_CATS_INSTALL)
     write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/yk-cats-config-version.cmake
         COMPATIBILITY SameMajorVersion
+        ARCH_INDEPENDENT
     )
 
     install(
