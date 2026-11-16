@@ -1,6 +1,10 @@
 #include <yk/cats/public.hpp>
 
-#include <catch2/catch_test_macros.hpp>
+#if YK_CATS_CATCH2_MAJOR_VERSION < 3
+#  include <catch2/catch.hpp>
+#else
+#  include <catch2/catch_test_macros.hpp>
+#endif
 
 TEST_CASE("main")
 {
