@@ -7,7 +7,7 @@ FetchContent_Declare(
     GIT_SHALLOW ON
 )
 
-macro(example_provide_dependency method package_name)
+macro(yk_cats_provide_dependency method package_name)
     if("${package_name}" STREQUAL "Catch2")
         FetchContent_MakeAvailable(Catch2)
         set(Catch2_FOUND ON)
@@ -15,6 +15,6 @@ macro(example_provide_dependency method package_name)
 endmacro()
 
 cmake_language(
-    SET_DEPENDENCY_PROVIDER example_provide_dependency
+    SET_DEPENDENCY_PROVIDER yk_cats_provide_dependency
     SUPPORTED_METHODS FIND_PACKAGE
 )

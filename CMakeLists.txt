@@ -8,84 +8,85 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     endif()
 endif()
 
-project(example VERSION 0.0.1 LANGUAGES CXX)
+project(yk-cats VERSION 0.0.1 LANGUAGES CXX)
 
-add_library(example STATIC)
+add_library(yk_cats STATIC)
 
-target_compile_features(example PUBLIC cxx_std_11)
+target_compile_features(yk_cats PUBLIC cxx_std_11)
 
-file(GLOB_RECURSE EXAMPLE_PUBLIC_HEADERS CONFIGURE_DEPENDS include/*.hpp)
-file(GLOB_RECURSE EXAMPLE_PRIVATE_HEADERS CONFIGURE_DEPENDS src/*.hpp)
-file(GLOB_RECURSE EXAMPLE_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE YK_CATS_PUBLIC_HEADERS CONFIGURE_DEPENDS include/*.hpp)
+file(GLOB_RECURSE YK_CATS_PRIVATE_HEADERS CONFIGURE_DEPENDS src/*.hpp)
+file(GLOB_RECURSE YK_CATS_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 target_sources(
-    example
+    yk_cats
     PUBLIC
-        FILE_SET example_public_headers
+        FILE_SET yk_cats_public_headers
             TYPE HEADERS
             BASE_DIRS include
-            FILES ${EXAMPLE_PUBLIC_HEADERS}
+            FILES ${YK_CATS_PUBLIC_HEADERS}
 )
 
 target_sources(
-    example
+    yk_cats
     PRIVATE
-        FILE_SET example_private_headers
+        FILE_SET yk_cats_private_headers
             TYPE HEADERS
             BASE_DIRS src
-            FILES ${EXAMPLE_PRIVATE_HEADERS}
+            FILES ${YK_CATS_PRIVATE_HEADERS}
 )
 
-target_sources(example PRIVATE ${EXAMPLE_SOURCES})
+target_sources(yk_cats PRIVATE ${YK_CATS_SOURCES})
 
-add_library(example::example ALIAS example)
+set_target_properties(yk_cats PROPERTIES EXPORT_NAME cats)
+add_library(yk::cats ALIAS yk_cats)
 
-option(EXAMPLE_BUILD_TESTING "build test" ${PROJECT_IS_TOP_LEVEL})
-if(EXAMPLE_BUILD_TESTING)
+option(YK_CATS_BUILD_TESTING "build test" ${PROJECT_IS_TOP_LEVEL})
+if(YK_CATS_BUILD_TESTING)
     enable_testing()
     add_subdirectory(test)
 endif()
 
 option(
-    EXAMPLE_INSTALL
-    "generate install rules for example"
+    YK_CATS_INSTALL
+    "generate install rules for yk-cats"
     ${PROJECT_IS_TOP_LEVEL}
 )
 
-if(EXAMPLE_INSTALL)
+if(YK_CATS_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
-    set(EXAMPLE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/example)
+    set(YK_CATS_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/yk-cats)
 
     install(
-        TARGETS example
-        EXPORT example-targets
-        FILE_SET example_public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        TARGETS yk_cats
+        EXPORT yk-cats-targets
+        FILE_SET yk_cats_public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 
     install(
-        EXPORT example-targets
-        FILE example-targets.cmake
-        NAMESPACE example::
-        DESTINATION ${EXAMPLE_INSTALL_CMAKEDIR}
+        EXPORT yk-cats-targets
+        FILE yk-cats-targets.cmake
+        NAMESPACE yk::
+        DESTINATION ${YK_CATS_INSTALL_CMAKEDIR}
     )
 
     configure_package_config_file(
-        cmake/example-config.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/example-config.cmake
-        INSTALL_DESTINATION ${EXAMPLE_INSTALL_CMAKEDIR}
+        cmake/yk-cats-config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/yk-cats-config.cmake
+        INSTALL_DESTINATION ${YK_CATS_INSTALL_CMAKEDIR}
     )
 
     write_basic_package_version_file(
-        ${CMAKE_CURRENT_BINARY_DIR}/example-config-version.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/yk-cats-config-version.cmake
         COMPATIBILITY SameMajorVersion
     )
 
     install(
         FILES
-            ${CMAKE_CURRENT_BINARY_DIR}/example-config.cmake
-            ${CMAKE_CURRENT_BINARY_DIR}/example-config-version.cmake
-        DESTINATION ${EXAMPLE_INSTALL_CMAKEDIR}
+            ${CMAKE_CURRENT_BINARY_DIR}/yk-cats-config.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/yk-cats-config-version.cmake
+        DESTINATION ${YK_CATS_INSTALL_CMAKEDIR}
     )
 endif()

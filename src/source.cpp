@@ -1,11 +1,13 @@
 #include <private.hpp>
 
-#include <example/public.hpp>
+#include <yk/cats/public.hpp>
 
-namespace example {
+namespace yk {
+namespace cats {
 
 int func_internal(int x) { return x; }
 
 int func(int x) { return func_internal(x); }
 
-}  // namespace example
+}  // namespace cats
+}  // namespace yk

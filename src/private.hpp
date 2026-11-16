@@ -1,10 +1,12 @@
-#ifndef EXAMPLE_PRIVATE_HPP
-#define EXAMPLE_PRIVATE_HPP
+#ifndef YK_CATS_PRIVATE_HPP
+#define YK_CATS_PRIVATE_HPP
 
-namespace example {
+namespace yk {
+namespace cats {
 
 int func_internal(int x);
 
-}  // namespace example
+}  // namespace cats
+}  // namespace yk
 
-#endif  // EXAMPLE_PRIVATE_HPP
+#endif  // YK_CATS_PRIVATE_HPP
