@@ -1,0 +1,140 @@
+name: Test
+
+permissions:
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+    paths: &paths-to-detect
+      - "CMakeLists.txt"
+      - "cmake/**/*"
+      - "include/**/*"
+      - "test/**/*"
+      - ".github/workflows/**/*"
+  pull_request:
+    branches:
+      - main
+    paths: *paths-to-detect
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: ubuntu
+            version: 24.04
+          - name: windows
+            version: 2025-vs2026
+        build-type:
+          - Debug
+          - Release
+        compiler:
+          - name: GCC
+            version: 14
+            executable: g++-14
+          - name: Clang
+            version: 21
+            executable: clang++-21
+          - name: Clang
+            version: 21
+            executable: clang++-21
+            stdlib: libc++
+          - name: MSVC
+            version: 2022
+            executable: cl
+            platform-toolset: v143
+            toolset: "14.44"
+          - name: MSVC
+            version: 2026
+            executable: cl
+            platform-toolset: v145
+            toolset: "14.51"
+        cxx-version: [11, 14, 17, 20, 23, 26]
+        exclude:
+          - os:
+              name: windows
+            compiler:
+              name: GCC
+          - os:
+              name: windows
+            compiler:
+              name: Clang
+          - os:
+              name: ubuntu
+            compiler:
+              name: MSVC
+          - compiler:
+              name: MSVC
+            cxx-version: 11
+          # CMake has no C++26 flag for MSVC; the C++23 jobs already use -std:c++latest.
+          - compiler:
+              name: MSVC
+            cxx-version: 26
+    name: C++${{ matrix.cxx-version }} ${{ matrix.build-type }} (${{ matrix.compiler.name }}${{ matrix.compiler.stdlib && format(' {0}', matrix.compiler.stdlib) || '' }} ${{ matrix.compiler.version }} on ${{ matrix.os.name }})
+    runs-on: ${{ matrix.os.name }}-${{ matrix.os.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Init Ubuntu
+        if: matrix.os.name == 'ubuntu'
+        run: |
+          echo "set man-db/auto-update false" | sudo debconf-communicate
+          sudo dpkg-reconfigure man-db
+          sudo apt-get update
+      - name: Setup GCC
+        if: matrix.compiler.name == 'GCC'
+        run: |
+          sudo apt-get install g++-${{ matrix.compiler.version }}
+      - name: Setup Clang
+        if: matrix.compiler.name == 'Clang'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x ./llvm.sh
+          sudo ./llvm.sh ${{ matrix.compiler.version }} all
+      - name: Setup MSVC
+        if: matrix.compiler.name == 'MSVC'
+        uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x64
+          toolset: ${{ matrix.compiler.toolset }}
+      - name: Restore deps from cache
+        id: cache-restore
+        uses: actions/cache/restore@v6
+        with:
+          path: build/_deps
+          key: ${{ matrix.cxx-version }}-${{ matrix.build-type }}-${{ matrix.compiler.name }}-${{ matrix.compiler.version }}${{ matrix.compiler.stdlib && format('-{0}', matrix.compiler.stdlib) || '' }}-${{ matrix.os.name }}-${{ matrix.os.version }}
+      - name: Configure
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_STANDARD=${{ matrix.cxx-version }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.executable }} ${{ matrix.compiler.stdlib && format('-DCMAKE_CXX_FLAGS=-stdlib={0} -DCMAKE_EXE_LINKER_FLAGS=-stdlib={0}', matrix.compiler.stdlib) || '' }} ${{ matrix.compiler.name == 'MSVC' && format('-T {0},version={1}', matrix.compiler.platform-toolset, matrix.compiler.toolset) || '' }} -DYK_CATS_CI=ON -Bbuild .
+      - name: Build tests
+        run: |
+          echo "CPPWARNINGNOTIFIER_LOG_MARKER"
+          cmake --build build --config ${{ matrix.build-type }}
+      - name: Save deps to cache
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: build/_deps
+          key: ${{ steps.cache-restore.outputs.cache-primary-key }}
+      - name: Run test
+        working-directory: build/test
+        run: |
+          ctest -C ${{ matrix.build-type }}
+  run-notifier:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: iris-cpp/cpp-warning-notifier@v0.7
+        with:
+          RUN_ID: ${{ github.run_id }}
+          JOB_ID: ${{ job.check_run_id }}
+          JOB_REGEX: C\+\+(?<cppVersion>\d+) (?<config>.+) \((?<vendorName>.+) (?<vendorVersion>.+) on (?<osName>.+)\)
+          STEP_REGEX: Build.+
+          ROW_HEADERS: '["osName", "vendorName", "vendorVersion", "config"]'
+          COLUMN_HEADER: cppVersion
