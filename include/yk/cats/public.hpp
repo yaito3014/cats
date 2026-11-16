@@ -4,7 +4,7 @@
 namespace yk {
 namespace cats {
 
-int func(int x);
+inline int func(int x) { return x; }
 
 }  // namespace cats
 }  // namespace yk
