@@ -118,18 +118,21 @@ jobs:
           $version = ([version]$match).ToString(2)
           Write-Output "Using MSVC toolset $version ($match)"
           "version=$version" >> $env:GITHUB_OUTPUT
+          "full-version=$match" >> $env:GITHUB_OUTPUT
       - name: Setup MSVC
         if: matrix.compiler.name == 'MSVC'
         uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
           arch: x64
           toolset: ${{ steps.msvc-toolset.outputs.version }}
+      # The cached FetchContent sub-builds record the MSVC toolset they were
+      # configured with, and CMake refuses to reuse them with another one.
       - name: Restore deps from cache
         id: cache-restore
         uses: actions/cache/restore@v6
         with:
           path: build/_deps
-          key: ${{ matrix.cxx-version }}-${{ matrix.build-type }}-${{ matrix.compiler.name }}-${{ matrix.compiler.version }}${{ matrix.compiler.stdlib && format('-{0}', matrix.compiler.stdlib) || '' }}-${{ matrix.os.name }}-${{ matrix.os.version }}
+          key: ${{ matrix.cxx-version }}-${{ matrix.build-type }}-${{ matrix.compiler.name }}-${{ matrix.compiler.version }}${{ matrix.compiler.stdlib && format('-{0}', matrix.compiler.stdlib) || '' }}-${{ matrix.os.name }}-${{ matrix.os.version }}${{ steps.msvc-toolset.outputs.full-version && format('-{0}', steps.msvc-toolset.outputs.full-version) || '' }}
       - name: Configure
         run: |
           cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_STANDARD=${{ matrix.cxx-version }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.executable }} ${{ matrix.compiler.stdlib && format('-DCMAKE_CXX_FLAGS=-stdlib={0} -DCMAKE_EXE_LINKER_FLAGS=-stdlib={0}', matrix.compiler.stdlib) || '' }} ${{ matrix.compiler.name == 'MSVC' && format('-T {0},version={1}', matrix.compiler.platform-toolset, steps.msvc-toolset.outputs.version) || '' }} -DYK_CATS_CI=ON -Bbuild .
