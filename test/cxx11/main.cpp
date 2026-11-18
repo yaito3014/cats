@@ -33,6 +33,12 @@ constexpr int pick(structure_tag<structures::monoid>) { return 1; }
 constexpr int pick(structure_tag<structures::band>) { return 2; }
 constexpr int pick(structure_tag<structures::group>) { return 3; }
 
+template<law_set Laws>
+constexpr law_set deduce(structure_tag<Laws>)
+{
+  return Laws;
+}
+
 template<law_set Laws, class = void>
 struct can_pick : std::false_type {};
 
@@ -54,6 +60,8 @@ TEST_CASE("structure_tag overload resolution")
 
   // no overload accepts a loop
   STATIC_REQUIRE(!can_pick<structures::loop>::value);
+
+  STATIC_REQUIRE(deduce(make_structure_tag<structures::monoid>()) == structures::monoid);
 }
 
 TEST_CASE("is_valid_law_set")

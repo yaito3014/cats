@@ -3,9 +3,9 @@
 namespace laws = yk::cats::laws;
 
 #if defined(YK_CATS_TEST_RESERVED_BIT)
-using tag = yk::cats::structure_tag<yk::cats::law_set{1} << 6>;
+auto const tag = yk::cats::make_structure_tag<yk::cats::law_set{1} << 6>();
 #elif defined(YK_CATS_TEST_SELECTIVE_WITHOUT_IDEMPOTENT)
-using tag = yk::cats::structure_tag<laws::associative | laws::selective>;
+auto const tag = yk::cats::make_structure_tag<laws::associative | laws::selective>();
 #elif defined(YK_CATS_TEST_ASSOCIATIVE_DIVISIBLE_WITHOUT_UNITAL)
 auto const tag = yk::cats::make_structure_tag<laws::associative | laws::divisible>();
 #endif
