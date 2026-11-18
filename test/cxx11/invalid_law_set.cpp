@@ -8,4 +8,6 @@ auto const tag = yk::cats::make_structure_tag<yk::cats::law_set{1} << 6>();
 auto const tag = yk::cats::make_structure_tag<laws::associative | laws::selective>();
 #elif defined(YK_CATS_TEST_ASSOCIATIVE_DIVISIBLE_WITHOUT_UNITAL)
 auto const tag = yk::cats::make_structure_tag<laws::associative | laws::divisible>();
+#elif defined(YK_CATS_TEST_OVERLOAD_DECLARATION)
+void f(yk::cats::structure_tag<laws::associative | laws::selective>);
 #endif

@@ -102,19 +102,31 @@ constexpr bool is_valid_law_set(law_set set) noexcept
   return detail::uses_only_known_laws(set) && detail::selective_implies_idempotent(set) && detail::associative_divisible_implies_unital(set);
 }
 
+namespace detail {
+
+template<law_set Laws>
+struct checked_structure_tag {
+  static_assert(uses_only_known_laws(Laws), "law_set uses a reserved bit");
+  static_assert(selective_implies_idempotent(Laws), "selective implies idempotent");
+  static_assert(associative_divisible_implies_unital(Laws), "associative and divisible imply unital");
+  using type = law_lattice<Laws> const*;
+};
+
+}  // namespace detail
+
 // A pointer rather than the class itself, so tags are trivially copyable and
 // usable in constant expressions despite the virtual bases.
+//
+// Checking the law set here makes Laws non-deducible from structure_tag<Laws>.
+// That is deliberate: a deducing overload would match every tag exactly and so
+// outrank every concrete one. Use structure_tag<structures::magma> as the
+// fallback overload instead.
 template<law_set Laws>
-using structure_tag = detail::law_lattice<Laws> const*;
+using structure_tag = typename detail::checked_structure_tag<Laws>::type;
 
-// The law set is checked here rather than in structure_tag, which must stay a
-// plain pointer for overloads to deduce Laws from it.
 template<law_set Laws>
 constexpr structure_tag<Laws> make_structure_tag() noexcept
 {
-  static_assert(detail::uses_only_known_laws(Laws), "law_set uses a reserved bit");
-  static_assert(detail::selective_implies_idempotent(Laws), "selective implies idempotent");
-  static_assert(detail::associative_divisible_implies_unital(Laws), "associative and divisible imply unital");
   return nullptr;
 }
 

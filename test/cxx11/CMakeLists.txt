@@ -15,3 +15,8 @@ yk_cats_add_compile_fail_test(
     YK_CATS_TEST_ASSOCIATIVE_DIVISIBLE_WITHOUT_UNITAL
     "associative and divisible imply unital"
 )
+yk_cats_add_compile_fail_test(
+    11 overload_declaration invalid_law_set.cpp
+    YK_CATS_TEST_OVERLOAD_DECLARATION
+    "selective implies idempotent"
+)
