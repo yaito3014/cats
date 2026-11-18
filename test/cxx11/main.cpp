@@ -55,3 +55,53 @@ TEST_CASE("structure_tag overload resolution")
   // no overload accepts a loop
   STATIC_REQUIRE(!can_pick<structures::loop>::value);
 }
+
+namespace {
+
+constexpr int pick_or_fallback(structure_tag<structures::monoid>) { return 1; }
+constexpr int pick_or_fallback(structure_tag<structures::magma>) { return 0; }
+
+}  // namespace
+
+TEST_CASE("structure_tag<magma> as the fallback overload")
+{
+  STATIC_REQUIRE(pick_or_fallback(make_structure_tag<structures::commutative_monoid>()) == 1);
+  STATIC_REQUIRE(pick_or_fallback(make_structure_tag<structures::loop>()) == 0);
+}
+
+TEST_CASE("is_valid_law_set")
+{
+  using yk::cats::is_valid_law_set;
+  using yk::cats::law_set;
+  namespace laws = yk::cats::laws;
+
+  STATIC_REQUIRE(is_valid_law_set(structures::magma));
+  STATIC_REQUIRE(is_valid_law_set(structures::commutative_magma));
+  STATIC_REQUIRE(is_valid_law_set(structures::unital_magma));
+  STATIC_REQUIRE(is_valid_law_set(structures::semigroup));
+  STATIC_REQUIRE(is_valid_law_set(structures::commutative_semigroup));
+  STATIC_REQUIRE(is_valid_law_set(structures::band));
+  STATIC_REQUIRE(is_valid_law_set(structures::semilattice));
+  STATIC_REQUIRE(is_valid_law_set(structures::monoid));
+  STATIC_REQUIRE(is_valid_law_set(structures::commutative_monoid));
+  STATIC_REQUIRE(is_valid_law_set(structures::idempotent_monoid));
+  STATIC_REQUIRE(is_valid_law_set(structures::bounded_semilattice));
+  STATIC_REQUIRE(is_valid_law_set(structures::quasigroup));
+  STATIC_REQUIRE(is_valid_law_set(structures::commutative_quasigroup));
+  STATIC_REQUIRE(is_valid_law_set(structures::idempotent_quasigroup));
+  STATIC_REQUIRE(is_valid_law_set(structures::loop));
+  STATIC_REQUIRE(is_valid_law_set(structures::commutative_loop));
+  STATIC_REQUIRE(is_valid_law_set(structures::group));
+  STATIC_REQUIRE(is_valid_law_set(structures::commutative_group));
+
+  STATIC_REQUIRE(is_valid_law_set(structures::band | laws::selective));
+
+  // consistent, though only a one-element carrier satisfies it
+  STATIC_REQUIRE(is_valid_law_set(structures::loop | laws::idempotent));
+
+  STATIC_REQUIRE(!is_valid_law_set(law_set{1} << 6));
+  STATIC_REQUIRE(!is_valid_law_set(laws::selective));
+  STATIC_REQUIRE(!is_valid_law_set(structures::semigroup | laws::selective));
+  STATIC_REQUIRE(!is_valid_law_set(laws::associative | laws::divisible));
+  STATIC_REQUIRE(!is_valid_law_set(laws::associative | laws::divisible | laws::commutative));
+}

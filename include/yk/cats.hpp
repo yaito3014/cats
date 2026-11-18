@@ -69,17 +69,6 @@ struct law_lattice : law_lattice_bases<Laws, typename decompose<std::integral_co
 
 }  // namespace detail
 
-// A pointer rather than the class itself, so tags are trivially copyable and
-// usable in constant expressions despite the virtual bases.
-template<law_set Laws>
-using structure_tag = detail::law_lattice<Laws> const*;
-
-template<law_set Laws>
-constexpr structure_tag<Laws> make_structure_tag() noexcept
-{
-  return nullptr;
-}
-
 namespace laws {
 
 constexpr law_set associative = law_set{1} << 0;
@@ -90,6 +79,56 @@ constexpr law_set idempotent = law_set{1} << 4;
 constexpr law_set selective = law_set{1} << 5;  // a * b is either a or b; implies idempotent.
 
 }  // namespace laws
+
+namespace detail {
+
+constexpr law_set known_laws = laws::associative | laws::unital | laws::divisible | laws::commutative | laws::idempotent | laws::selective;
+constexpr law_set associative_divisible = laws::associative | laws::divisible;
+
+constexpr bool uses_only_known_laws(law_set set) noexcept { return (set & ~known_laws) == 0; }
+
+constexpr bool selective_implies_idempotent(law_set set) noexcept { return (set & laws::selective) == 0 || (set & laws::idempotent) != 0; }
+
+// A nonempty associative quasigroup has an identity element.
+constexpr bool associative_divisible_implies_unital(law_set set) noexcept
+{
+  return (set & associative_divisible) != associative_divisible || (set & laws::unital) != 0;
+}
+
+}  // namespace detail
+
+constexpr bool is_valid_law_set(law_set set) noexcept
+{
+  return detail::uses_only_known_laws(set) && detail::selective_implies_idempotent(set) && detail::associative_divisible_implies_unital(set);
+}
+
+namespace detail {
+
+template<law_set Laws>
+struct checked_structure_tag {
+  static_assert(uses_only_known_laws(Laws), "law_set uses a reserved bit");
+  static_assert(selective_implies_idempotent(Laws), "selective implies idempotent");
+  static_assert(associative_divisible_implies_unital(Laws), "associative and divisible imply unital");
+  using type = law_lattice<Laws> const*;
+};
+
+}  // namespace detail
+
+// A pointer rather than the class itself, so tags are trivially copyable and
+// usable in constant expressions despite the virtual bases.
+//
+// Checking the law set here makes Laws non-deducible from structure_tag<Laws>.
+// That is deliberate: a deducing overload would match every tag exactly and so
+// outrank every concrete one. Use structure_tag<structures::magma> as the
+// fallback overload instead.
+template<law_set Laws>
+using structure_tag = typename detail::checked_structure_tag<Laws>::type;
+
+template<law_set Laws>
+constexpr structure_tag<Laws> make_structure_tag() noexcept
+{
+  return nullptr;
+}
 
 namespace structures {
 
