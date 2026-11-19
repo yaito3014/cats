@@ -6,6 +6,11 @@ namespace cats = yk::cats;
 
 namespace {
 
+// commutative, but not associative
+struct midpoint {
+  unsigned operator()(unsigned a, unsigned b) const { return a / 2 + b / 2 + (a % 2 + b % 2) / 2; }
+};
+
 // a group, but neither its identity element nor its inverses are declared
 struct add {
   unsigned operator()(unsigned a, unsigned b) const { return a + b; }
@@ -20,7 +25,10 @@ struct weakened {
 namespace yk {
 namespace cats {
 
-#if defined(YK_CATS_TEST_WEAKENED_FALLBACK)
+#if defined(YK_CATS_TEST_NOT_ASSOCIATIVE)
+template<>
+struct operation_laws<midpoint, unsigned, instances::strict> : std::integral_constant<law_set, structures::commutative_magma> {};
+#elif defined(YK_CATS_TEST_WEAKENED_FALLBACK)
 template<>
 struct operation_laws<std::plus<unsigned>, unsigned, weakened> : std::integral_constant<law_set, structures::commutative_monoid> {};
 #endif
@@ -38,4 +46,8 @@ cats::operation_structure_tag<std::plus<unsigned>, unsigned, weakened> const tag
 unsigned const result = cats::identity_element<unsigned>(add{});
 #elif defined(YK_CATS_TEST_MISSING_INVERSE)
 unsigned const result = cats::inverse(add{}, 1u);
+#elif defined(YK_CATS_TEST_NOT_ASSOCIATIVE)
+unsigned const result = cats::power(midpoint{}, 1u, 2);
+#elif defined(YK_CATS_TEST_NON_INTEGER_EXPONENT)
+unsigned const result = cats::power(std::plus<unsigned>{}, 1u, 2.0);
 #endif

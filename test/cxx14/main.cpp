@@ -27,3 +27,10 @@ TEST_CASE("transparent operators")
 
   STATIC_REQUIRE(cats::identity_element<unsigned>(std::bit_and<>{}) == ~0u);
 }
+
+TEST_CASE("power is a constant expression with the standard operations")
+{
+  STATIC_REQUIRE(cats::power(std::plus<>{}, 3u, 4) == 12u);
+  STATIC_REQUIRE(cats::power(std::multiplies<int>{}, 3, 4) == 81);
+  STATIC_REQUIRE(cats::power(std::plus<int>{}, 3, -4) == -12);
+}

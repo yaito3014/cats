@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <cassert>
 #include <climits>
 #include <cstddef>
 #include <cstdint>
@@ -509,6 +510,92 @@ constexpr T inverse(Op const& op, T const& x)
 {
   static_assert(detail::has_inverse_query<Op, T>::value || detail::has_inverse_traits<Op, T>::value, "no inverse is declared for the operation on the carrier");
   return detail::query_inverse(op, x, detail::has_inverse_query<Op, T>());
+}
+
+namespace detail {
+
+template<class Integer>
+constexpr bool is_negative(Integer n, std::true_type /* is_signed */) noexcept
+{
+  return n < 0;
+}
+
+template<class Integer>
+constexpr bool is_negative(Integer, std::false_type /* is_signed */) noexcept
+{
+  return false;
+}
+
+template<class Integer>
+constexpr bool is_negative(Integer n) noexcept
+{
+  return is_negative(n, std::is_signed<Integer>());
+}
+
+// |n|, computed in the unsigned type so that it is exact for the minimum value.
+template<class Integer>
+constexpr typename std::make_unsigned<Integer>::type magnitude(Integer n) noexcept
+{
+  using unsigned_type = typename std::make_unsigned<Integer>::type;
+  return is_negative(n) ? static_cast<unsigned_type>(unsigned_type(0) - static_cast<unsigned_type>(n)) : static_cast<unsigned_type>(n);
+}
+
+// x^n for n >= 1 by repeated squaring, which needs only associativity.
+template<class Op, class T, class Unsigned>
+constexpr T power_positive(Op const& op, T const& x, Unsigned n)
+{
+  return n == 1       ? x
+         : n % 2 == 0 ? power_positive(op, T(op(x, x)), static_cast<Unsigned>(n / 2))
+                      : T(op(x, power_positive(op, T(op(x, x)), static_cast<Unsigned>(n / 2))));
+}
+
+template<class Op, class T, class Integer>
+constexpr T power_impl(structure_tag<structures::semigroup>, Op const& op, T const& x, Integer n)
+{
+  return assert(n >= 1), power_positive(op, x, magnitude(n));
+}
+
+template<class Op, class T, class Integer>
+constexpr T power_impl(structure_tag<structures::monoid>, Op const& op, T const& x, Integer n)
+{
+  return assert(!is_negative(n)), n == 0 ? identity_element<T>(op) : power_positive(op, x, magnitude(n));
+}
+
+template<class Op, class T, class Integer>
+constexpr T power_impl(structure_tag<structures::group>, Op const& op, T const& x, Integer n)
+{
+  return n == 0 ? identity_element<T>(op) : power_positive(op, is_negative(n) ? inverse(op, x) : x, magnitude(n));
+}
+
+template<class Op, class T, class Integer>
+constexpr T power_impl(structure_tag<structures::band>, Op const&, T const& x, Integer n)
+{
+  return assert(n >= 1), x;
+}
+
+template<class Op, class T, class Integer>
+constexpr T power_impl(structure_tag<structures::idempotent_monoid>, Op const& op, T const& x, Integer n)
+{
+  return assert(!is_negative(n)), n == 0 ? identity_element<T>(op) : x;
+}
+
+// Only a one-element carrier satisfies these laws, so every power is x.
+template<class Op, class T, class Integer>
+constexpr T power_impl(structure_tag<structures::group | laws::idempotent>, Op const&, T const& x, Integer)
+{
+  return x;
+}
+
+}  // namespace detail
+
+// x combined with itself n times. Requires n >= 1, or n >= 0 for a unital
+// operation; a group also accepts negative n.
+template<class Instances = instances::lenient, class Op, class T, class Integer>
+constexpr T power(Op const& op, T const& x, Integer n)
+{
+  static_assert(std::is_integral<Integer>::value && !std::is_same<Integer, bool>::value, "power requires an integer exponent");
+  static_assert((detail::checked_operation_laws<Op, T, Instances>::value & laws::associative) != 0, "power requires an associative operation");
+  return detail::power_impl(operation_structure_tag<Op, T, Instances>(), op, x, n);
 }
 
 }  // namespace cats
