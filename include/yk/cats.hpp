@@ -1,7 +1,9 @@
 #ifndef YK_ZZ_CATS_HPP
 #define YK_ZZ_CATS_HPP
 
+#include <functional>
 #include <type_traits>
+#include <utility>
 
 #include <climits>
 #include <cstddef>
@@ -155,6 +157,193 @@ constexpr law_set commutative_group      = magma | laws::associative | laws::uni
 // clang-format on
 
 }  // namespace structures
+
+// An instance set selects which law declarations are in effect, so that the
+// same operation can be declared differently for different needs. A set may
+// name a fallback, whose declarations it inherits and may only strengthen.
+namespace instances {
+
+// Laws that hold exactly, such as those of unsigned arithmetic.
+struct strict {};
+
+// Additionally, laws that hold only up to overflow or rounding, such as those
+// of signed and floating-point arithmetic.
+struct lenient {
+  using fallback = strict;
+};
+
+}  // namespace instances
+
+// Declares the laws of Op on the carrier T under Instances, by deriving from
+// std::integral_constant<law_set, Laws>. Specializations declare laws; the
+// primary template provides those of the standard operations and otherwise
+// inherits from the fallback of Instances, if any.
+template<class Op, class T, class Instances>
+struct operation_laws;
+
+namespace detail {
+
+template<class T>
+struct make_void {
+  using type = void;
+};
+
+template<class Laws, class = void>
+struct declares_laws : std::false_type {};
+
+template<class Laws>
+struct declares_laws<Laws, typename make_void<decltype(Laws::value)>::type> : std::true_type {};
+
+enum class builtin_operation { none, plus, multiplies, bit_and, bit_or, bit_xor };
+
+template<class Op>
+struct builtin_operation_of : std::integral_constant<builtin_operation, builtin_operation::none> {};
+
+template<class U>
+struct builtin_operation_of<std::plus<U>> : std::integral_constant<builtin_operation, builtin_operation::plus> {
+  using operand_type = U;
+};
+
+template<class U>
+struct builtin_operation_of<std::multiplies<U>> : std::integral_constant<builtin_operation, builtin_operation::multiplies> {
+  using operand_type = U;
+};
+
+template<class U>
+struct builtin_operation_of<std::bit_and<U>> : std::integral_constant<builtin_operation, builtin_operation::bit_and> {
+  using operand_type = U;
+};
+
+template<class U>
+struct builtin_operation_of<std::bit_or<U>> : std::integral_constant<builtin_operation, builtin_operation::bit_or> {
+  using operand_type = U;
+};
+
+template<class U>
+struct builtin_operation_of<std::bit_xor<U>> : std::integral_constant<builtin_operation, builtin_operation::bit_xor> {
+  using operand_type = U;
+};
+
+// Integral promotion leaves T unchanged, so a transparent operator applied to
+// two Ts yields a T and unsigned arithmetic on T is performed modulo 2^N.
+template<class T, bool = std::is_arithmetic<T>::value>
+struct is_unpromoted_arithmetic : std::false_type {};
+
+template<class T>
+struct is_unpromoted_arithmetic<T, true> : std::is_same<decltype(+std::declval<T>()), T> {};
+
+// The standard operation Op is closed on T: it is either Op<T>, or the
+// transparent Op<> and T is not promoted.
+template<class Op, class T, class Operand = typename builtin_operation_of<Op>::operand_type>
+struct is_closed_builtin_operation : std::is_same<Operand, T> {};
+
+template<class Op, class T>
+struct is_closed_builtin_operation<Op, T, void> : is_unpromoted_arithmetic<T> {};
+
+template<class Op, class T, bool = builtin_operation_of<Op>::value != builtin_operation::none>
+struct builtin_operation_on : std::integral_constant<builtin_operation, builtin_operation::none> {};
+
+template<class Op, class T>
+struct builtin_operation_on<Op, T, true>
+    : std::integral_constant<builtin_operation, is_closed_builtin_operation<Op, T>::value ? builtin_operation_of<Op>::value : builtin_operation::none> {};
+
+constexpr bool is_bitwise(builtin_operation op) noexcept
+{
+  return op == builtin_operation::bit_and || op == builtin_operation::bit_or || op == builtin_operation::bit_xor;
+}
+
+template<class T>
+constexpr bool has_exact_builtin_laws(builtin_operation op) noexcept
+{
+  return op != builtin_operation::none
+         && ((std::is_integral<T>::value && std::is_unsigned<T>::value && is_unpromoted_arithmetic<T>::value)
+             || (is_bitwise(op) && std::is_same<T, bool>::value));
+}
+
+template<class T>
+constexpr bool has_builtin_laws(builtin_operation op) noexcept
+{
+  return op != builtin_operation::none && (is_bitwise(op) ? std::is_integral<T>::value : std::is_arithmetic<T>::value && !std::is_same<T, bool>::value);
+}
+
+constexpr law_set builtin_laws(builtin_operation op) noexcept
+{
+  return op == builtin_operation::plus || op == builtin_operation::bit_xor ? structures::commutative_group
+         : op == builtin_operation::multiplies                             ? structures::commutative_monoid
+                                                                           : structures::bounded_semilattice;
+}
+
+template<class Op, class T, class Instances>
+struct builtin_operation_laws {};
+
+template<class Op, class T, bool = has_exact_builtin_laws<T>(builtin_operation_on<Op, T>::value)>
+struct exact_builtin_operation_laws {};
+
+template<class Op, class T>
+struct exact_builtin_operation_laws<Op, T, true> : std::integral_constant<law_set, builtin_laws(builtin_operation_on<Op, T>::value)> {};
+
+template<class Op, class T>
+struct builtin_operation_laws<Op, T, instances::strict> : exact_builtin_operation_laws<Op, T> {};
+
+template<class Op, class T, bool = !has_exact_builtin_laws<T>(builtin_operation_on<Op, T>::value) && has_builtin_laws<T>(builtin_operation_on<Op, T>::value)>
+struct inexact_builtin_operation_laws {};
+
+template<class Op, class T>
+struct inexact_builtin_operation_laws<Op, T, true> : std::integral_constant<law_set, builtin_laws(builtin_operation_on<Op, T>::value)> {};
+
+template<class Op, class T>
+struct builtin_operation_laws<Op, T, instances::lenient> : inexact_builtin_operation_laws<Op, T> {};
+
+template<class Op, class T, class Instances, class = void>
+struct fallback_operation_laws {};
+
+template<class Op, class T, class Instances>
+struct fallback_operation_laws<Op, T, Instances, typename make_void<typename Instances::fallback>::type> : operation_laws<Op, T, typename Instances::fallback> {
+};
+
+template<class Op, class T, class Instances>
+struct default_operation_laws : std::conditional<
+                                    declares_laws<builtin_operation_laws<Op, T, Instances>>::value, builtin_operation_laws<Op, T, Instances>,
+                                    fallback_operation_laws<Op, T, Instances>>::type {};
+
+}  // namespace detail
+
+template<class Op, class T, class Instances>
+struct operation_laws : detail::default_operation_laws<Op, T, Instances> {};
+
+namespace detail {
+
+template<class Laws, bool = declares_laws<Laws>::value>
+struct declared_laws : std::integral_constant<law_set, structures::magma> {};
+
+template<class Laws>
+struct declared_laws<Laws, true> : std::integral_constant<law_set, Laws::value> {};
+
+// Every instance set in the chain from Instances declares at least the laws of
+// its fallback.
+template<class Op, class T, class Instances, class = void>
+struct strengthens_fallbacks : std::true_type {};
+
+template<class Op, class T, class Instances>
+struct strengthens_fallbacks<Op, T, Instances, typename make_void<typename Instances::fallback>::type>
+    : std::integral_constant<
+          bool,
+          (!declares_laws<operation_laws<Op, T, typename Instances::fallback>>::value
+           || (declares_laws<operation_laws<Op, T, Instances>>::value
+               && (declared_laws<operation_laws<Op, T, typename Instances::fallback>>::value & ~declared_laws<operation_laws<Op, T, Instances>>::value) == 0))
+              && strengthens_fallbacks<Op, T, typename Instances::fallback>::value> {};
+
+template<class Op, class T, class Instances>
+struct checked_operation_laws {
+  static_assert(declares_laws<operation_laws<Op, T, Instances>>::value, "no laws are declared for the operation on the carrier");
+  static_assert(strengthens_fallbacks<Op, T, Instances>::value, "an instance set must not weaken the laws of its fallback");
+  static constexpr law_set value = declared_laws<operation_laws<Op, T, Instances>>::value;
+};
+
+}  // namespace detail
+
+template<class Op, class T, class Instances = instances::lenient>
+using operation_structure_tag = structure_tag<detail::checked_operation_laws<Op, T, Instances>::value>;
 
 }  // namespace cats
 

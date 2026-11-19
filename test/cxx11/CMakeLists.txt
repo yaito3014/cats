@@ -1,4 +1,4 @@
-yk_cats_add_test_suite(11 main.cpp)
+yk_cats_add_test_suite(11 main.cpp operation_laws.cpp)
 
 yk_cats_add_compile_fail_test(
     11 reserved_bit invalid_law_set.cpp
@@ -19,4 +19,19 @@ yk_cats_add_compile_fail_test(
     11 overload_declaration invalid_law_set.cpp
     YK_CATS_TEST_OVERLOAD_DECLARATION
     "selective implies idempotent"
+)
+yk_cats_add_compile_fail_test(
+    11 undeclared_operation invalid_operation.cpp
+    YK_CATS_TEST_UNDECLARED_OPERATION
+    "no laws are declared"
+)
+yk_cats_add_compile_fail_test(
+    11 strict_signed invalid_operation.cpp
+    YK_CATS_TEST_STRICT_SIGNED
+    "no laws are declared"
+)
+yk_cats_add_compile_fail_test(
+    11 weakened_fallback invalid_operation.cpp
+    YK_CATS_TEST_WEAKENED_FALLBACK
+    "must not weaken"
 )
