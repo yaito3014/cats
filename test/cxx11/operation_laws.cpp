@@ -6,6 +6,7 @@
 #  include <catch2/catch_test_macros.hpp>
 #endif
 
+#include <climits>
 #include <functional>
 
 namespace {
@@ -29,6 +30,20 @@ struct max_op {
   constexpr unsigned operator()(unsigned a, unsigned b) const noexcept { return a < b ? b : a; }
 };
 
+// Answers through member queries, which take precedence over the traits.
+struct queried {
+  constexpr unsigned query(cats::identity_element_t<unsigned>) const noexcept { return 1; }
+  constexpr unsigned query(cats::inverse_t, unsigned x) const noexcept { return x + 1; }
+};
+
+struct generic_query {
+  template<class T>
+  constexpr T query(cats::identity_element_t<T>) const noexcept
+  {
+    return T(7);
+  }
+};
+
 struct extended {
   using fallback = instances::lenient;
 };
@@ -47,6 +62,16 @@ struct operation_laws<max_op, unsigned, instances::strict> : std::integral_const
 // strengthens the declaration of strict
 template<>
 struct operation_laws<max_op, unsigned, extended> : std::integral_constant<law_set, structures::bounded_semilattice | laws::selective> {};
+
+template<>
+struct identity_element_traits<queried, unsigned> {
+  static constexpr unsigned identity_element(queried const&) noexcept { return 2; }
+};
+
+template<>
+struct inverse_traits<queried, unsigned> {
+  static constexpr unsigned inverse(queried const&, unsigned x) noexcept { return x + 2; }
+};
 
 }  // namespace cats
 }  // namespace yk
@@ -110,4 +135,27 @@ TEST_CASE("operation_structure_tag dispatches on the declared laws")
   STATIC_REQUIRE(
       std::is_same<cats::operation_structure_tag<std::plus<int>, int, instances::lenient>, cats::structure_tag<structures::commutative_group>>::value
   );
+}
+
+TEST_CASE("identity elements and inverses of the standard operations")
+{
+  STATIC_REQUIRE(cats::identity_element<unsigned>(std::plus<unsigned>{}) == 0u);
+  STATIC_REQUIRE(cats::identity_element<int>(std::multiplies<int>{}) == 1);
+  STATIC_REQUIRE(cats::identity_element<unsigned>(std::bit_and<unsigned>{}) == UINT_MAX);
+  STATIC_REQUIRE(cats::identity_element<unsigned>(std::bit_or<unsigned>{}) == 0u);
+  STATIC_REQUIRE(cats::identity_element<bool>(std::bit_and<bool>{}));
+  STATIC_REQUIRE(!cats::identity_element<bool>(std::bit_xor<bool>{}));
+
+  STATIC_REQUIRE(cats::inverse(std::plus<unsigned>{}, 1u) == UINT_MAX);
+  STATIC_REQUIRE(cats::inverse(std::plus<int>{}, 3) == -3);
+  STATIC_REQUIRE(cats::inverse(std::bit_xor<unsigned>{}, 5u) == 5u);
+}
+
+TEST_CASE("member queries take precedence over the traits")
+{
+  STATIC_REQUIRE(cats::identity_element<unsigned>(queried{}) == 1u);
+  STATIC_REQUIRE(cats::inverse(queried{}, 3u) == 4u);
+
+  STATIC_REQUIRE(cats::identity_element<unsigned>(generic_query{}) == 7u);
+  STATIC_REQUIRE(cats::identity_element<long>(generic_query{}) == 7l);
 }

@@ -24,4 +24,6 @@ TEST_CASE("transparent operators")
   // short + short is int, so the operation is not closed on short
   STATIC_REQUIRE(!declares<std::plus<>, short, instances::lenient>::value);
   STATIC_REQUIRE(!declares<std::bit_and<>, bool, instances::lenient>::value);
+
+  STATIC_REQUIRE(cats::identity_element<unsigned>(std::bit_and<>{}) == ~0u);
 }

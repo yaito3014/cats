@@ -35,3 +35,13 @@ yk_cats_add_compile_fail_test(
     YK_CATS_TEST_WEAKENED_FALLBACK
     "must not weaken"
 )
+yk_cats_add_compile_fail_test(
+    11 missing_identity_element invalid_operation.cpp
+    YK_CATS_TEST_MISSING_IDENTITY_ELEMENT
+    "no identity element is declared"
+)
+yk_cats_add_compile_fail_test(
+    11 missing_inverse invalid_operation.cpp
+    YK_CATS_TEST_MISSING_INVERSE
+    "no inverse is declared"
+)

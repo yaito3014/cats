@@ -345,6 +345,172 @@ struct checked_operation_laws {
 template<class Op, class T, class Instances = instances::lenient>
 using operation_structure_tag = structure_tag<detail::checked_operation_laws<Op, T, Instances>::value>;
 
+// Query keys. An operation answers identity_element<T>(op) through a const
+// member op.query(identity_element_t<T>{}), and inverse(op, x) through
+// op.query(inverse_t{}, x). A member query takes precedence over the traits
+// below, and can depend on the state of the operation.
+template<class T>
+struct identity_element_t {};
+
+struct inverse_t {};
+
+// Specializations provide
+//   static constexpr T identity_element(Op const&);
+// returning the identity element of Op on T. The primary template provides
+// those of the standard operations.
+template<class Op, class T>
+struct identity_element_traits;
+
+// Specializations provide
+//   static constexpr T inverse(Op const&, T const&);
+// returning the inverse of an element under Op. The primary template provides
+// those of the standard operations.
+template<class Op, class T>
+struct inverse_traits;
+
+namespace detail {
+
+template<builtin_operation Op, class T>
+struct builtin_identity_element {};
+
+template<class T>
+struct builtin_identity_element<builtin_operation::plus, T> {
+  template<class Op>
+  static constexpr T identity_element(Op const&) noexcept
+  {
+    return T(0);
+  }
+};
+
+template<class T>
+struct builtin_identity_element<builtin_operation::multiplies, T> {
+  template<class Op>
+  static constexpr T identity_element(Op const&) noexcept
+  {
+    return T(1);
+  }
+};
+
+template<class T>
+struct builtin_identity_element<builtin_operation::bit_and, T> {
+  template<class Op>
+  static constexpr T identity_element(Op const&) noexcept
+  {
+    return static_cast<T>(-1);
+  }
+};
+
+template<class T>
+struct builtin_identity_element<builtin_operation::bit_or, T> : builtin_identity_element<builtin_operation::plus, T> {};
+
+template<class T>
+struct builtin_identity_element<builtin_operation::bit_xor, T> : builtin_identity_element<builtin_operation::plus, T> {};
+
+template<builtin_operation Op, class T>
+struct builtin_inverse {};
+
+template<class T>
+struct builtin_inverse<builtin_operation::plus, T> {
+  template<class Op>
+  static constexpr T inverse(Op const&, T const& x) noexcept
+  {
+    return static_cast<T>(-x);
+  }
+};
+
+template<class T>
+struct builtin_inverse<builtin_operation::bit_xor, T> {
+  template<class Op>
+  static constexpr T inverse(Op const&, T const& x) noexcept
+  {
+    return x;
+  }
+};
+
+template<class Op, class T>
+struct builtin_operation_with_laws
+    : std::integral_constant<
+          builtin_operation, has_builtin_laws<T>(builtin_operation_on<Op, T>::value) ? builtin_operation_on<Op, T>::value : builtin_operation::none> {};
+
+template<class Op, class T, class = void>
+struct has_identity_element_query : std::false_type {};
+
+template<class Op, class T>
+struct has_identity_element_query<Op, T, typename make_void<decltype(std::declval<Op const&>().query(identity_element_t<T>()))>::type> : std::true_type {};
+
+template<class Op, class T, class = void>
+struct has_identity_element_traits : std::false_type {};
+
+template<class Op, class T>
+struct has_identity_element_traits<Op, T, typename make_void<decltype(identity_element_traits<Op, T>::identity_element(std::declval<Op const&>()))>::type>
+    : std::true_type {};
+
+template<class Op, class T, class = void>
+struct has_inverse_query : std::false_type {};
+
+template<class Op, class T>
+struct has_inverse_query<Op, T, typename make_void<decltype(std::declval<Op const&>().query(inverse_t(), std::declval<T const&>()))>::type> : std::true_type {};
+
+template<class Op, class T, class = void>
+struct has_inverse_traits : std::false_type {};
+
+template<class Op, class T>
+struct has_inverse_traits<Op, T, typename make_void<decltype(inverse_traits<Op, T>::inverse(std::declval<Op const&>(), std::declval<T const&>()))>::type>
+    : std::true_type {};
+
+}  // namespace detail
+
+template<class Op, class T>
+struct identity_element_traits : detail::builtin_identity_element<detail::builtin_operation_with_laws<Op, T>::value, T> {};
+
+template<class Op, class T>
+struct inverse_traits : detail::builtin_inverse<detail::builtin_operation_with_laws<Op, T>::value, T> {};
+
+namespace detail {
+
+template<class T, class Op>
+constexpr T query_identity_element(Op const& op, std::true_type /* has_identity_element_query */)
+{
+  return op.query(identity_element_t<T>());
+}
+
+template<class T, class Op>
+constexpr T query_identity_element(Op const& op, std::false_type /* has_identity_element_query */)
+{
+  return identity_element_traits<Op, T>::identity_element(op);
+}
+
+template<class Op, class T>
+constexpr T query_inverse(Op const& op, T const& x, std::true_type /* has_inverse_query */)
+{
+  return op.query(inverse_t(), x);
+}
+
+template<class Op, class T>
+constexpr T query_inverse(Op const& op, T const& x, std::false_type /* has_inverse_query */)
+{
+  return inverse_traits<Op, T>::inverse(op, x);
+}
+
+}  // namespace detail
+
+template<class T, class Op>
+constexpr T identity_element(Op const& op)
+{
+  static_assert(
+      detail::has_identity_element_query<Op, T>::value || detail::has_identity_element_traits<Op, T>::value,
+      "no identity element is declared for the operation on the carrier"
+  );
+  return detail::query_identity_element<T>(op, detail::has_identity_element_query<Op, T>());
+}
+
+template<class Op, class T>
+constexpr T inverse(Op const& op, T const& x)
+{
+  static_assert(detail::has_inverse_query<Op, T>::value || detail::has_inverse_traits<Op, T>::value, "no inverse is declared for the operation on the carrier");
+  return detail::query_inverse(op, x, detail::has_inverse_query<Op, T>());
+}
+
 }  // namespace cats
 
 }  // namespace yk
