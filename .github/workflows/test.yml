@@ -105,14 +105,14 @@ jobs:
         uses: yaito3014/setup-msvc@v0.1.1
         with:
           toolset-prefix: ${{ matrix.compiler.toolset-prefix }}
-      # The cached FetchContent sub-builds record the MSVC toolset they were
-      # configured with, and CMake refuses to reuse them with another one.
+      # The cached FetchContent sub-builds record the exact -T value they were
+      # configured with, and CMake refuses to reuse them with any other one.
       - name: Restore deps from cache
         id: cache-restore
         uses: actions/cache/restore@v6
         with:
           path: build/_deps
-          key: ${{ matrix.cxx-version }}-${{ matrix.build-type }}-${{ matrix.compiler.name }}-${{ matrix.compiler.version }}${{ matrix.compiler.stdlib && format('-{0}', matrix.compiler.stdlib) || '' }}-${{ matrix.os.name }}-${{ matrix.os.version }}${{ steps.setup-msvc.outputs.toolset && format('-{0}', steps.setup-msvc.outputs.toolset) || '' }}
+          key: ${{ matrix.cxx-version }}-${{ matrix.build-type }}-${{ matrix.compiler.name }}-${{ matrix.compiler.version }}${{ matrix.compiler.stdlib && format('-{0}', matrix.compiler.stdlib) || '' }}-${{ matrix.os.name }}-${{ matrix.os.version }}${{ steps.setup-msvc.outputs.toolset && format('-{0}-{1}', matrix.compiler.platform-toolset, steps.setup-msvc.outputs.toolset) || '' }}
       - name: Configure
         run: |
           cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_STANDARD=${{ matrix.cxx-version }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.executable }} ${{ matrix.compiler.stdlib && format('-DCMAKE_CXX_FLAGS=-stdlib={0} -DCMAKE_EXE_LINKER_FLAGS=-stdlib={0}', matrix.compiler.stdlib) || '' }} ${{ matrix.compiler.name == 'MSVC' && format('-T {0},version={1}', matrix.compiler.platform-toolset, steps.setup-msvc.outputs.toolset) || '' }} -DYK_CATS_CI=ON -Bbuild .
