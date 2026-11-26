@@ -187,6 +187,16 @@ TEST_CASE("power picks the algorithm from the laws")
   REQUIRE(count == 0);
 }
 
+TEST_CASE("stateless overloads of power")
+{
+  STATIC_REQUIRE(cats::power<constexpr_plus>(3u, 5) == 15u);
+  STATIC_REQUIRE(cats::power<constexpr_plus>(3u, 0) == 0u);
+
+  REQUIRE(cats::power<std::multiplies<int>>(2, 10) == 1024);
+  REQUIRE(cats::power<std::plus<unsigned>, instances::strict>(3u, -2) == 0u - 6u);
+  REQUIRE(cats::power<std::plus<std::string>>(std::string("ab"), 3) == "ababab");
+}
+
 TEST_CASE("power dispatches unambiguously on every valid associative law set")
 {
   STATIC_REQUIRE(all_dispatch(cats::detail::make_integer_sequence<cats::law_set, 64>{}));

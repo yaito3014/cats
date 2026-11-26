@@ -55,3 +55,8 @@ yk_cats_add_compile_fail_test(
     YK_CATS_TEST_NON_INTEGER_EXPONENT
     "power requires an integer exponent"
 )
+yk_cats_add_compile_fail_test(
+    11 not_default_constructible invalid_operation.cpp
+    YK_CATS_TEST_NOT_DEFAULT_CONSTRUCTIBLE
+    "requires a default-constructible operation"
+)

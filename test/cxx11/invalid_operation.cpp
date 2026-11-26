@@ -16,6 +16,13 @@ struct add {
   unsigned operator()(unsigned a, unsigned b) const { return a + b; }
 };
 
+// a group whose operation cannot be default-constructed
+struct offset_add {
+  unsigned offset;
+  explicit offset_add(unsigned o) : offset(o) {}
+  unsigned operator()(unsigned a, unsigned b) const { return a + b - offset; }
+};
+
 struct weakened {
   using fallback = cats::instances::strict;
 };
@@ -31,6 +38,9 @@ struct operation_laws<midpoint, unsigned, instances::strict> : std::integral_con
 #elif defined(YK_CATS_TEST_WEAKENED_FALLBACK)
 template<>
 struct operation_laws<std::plus<unsigned>, unsigned, weakened> : std::integral_constant<law_set, structures::commutative_monoid> {};
+#elif defined(YK_CATS_TEST_NOT_DEFAULT_CONSTRUCTIBLE)
+template<>
+struct operation_laws<offset_add, unsigned, instances::strict> : std::integral_constant<law_set, structures::commutative_semigroup> {};
 #endif
 
 }  // namespace cats
@@ -48,6 +58,8 @@ unsigned const result = cats::identity_element<unsigned>(add{});
 unsigned const result = cats::inverse(add{}, 1u);
 #elif defined(YK_CATS_TEST_NOT_ASSOCIATIVE)
 unsigned const result = cats::power(midpoint{}, 1u, 2);
+#elif defined(YK_CATS_TEST_NOT_DEFAULT_CONSTRUCTIBLE)
+unsigned const result = cats::power<offset_add>(1u, 2);
 #elif defined(YK_CATS_TEST_NON_INTEGER_EXPONENT)
 unsigned const result = cats::power(std::plus<unsigned>{}, 1u, 2.0);
 #endif

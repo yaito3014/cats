@@ -159,3 +159,14 @@ TEST_CASE("member queries take precedence over the traits")
   STATIC_REQUIRE(cats::identity_element<unsigned>(generic_query{}) == 7u);
   STATIC_REQUIRE(cats::identity_element<long>(generic_query{}) == 7l);
 }
+
+TEST_CASE("stateless overloads of identity_element and inverse")
+{
+  STATIC_REQUIRE(cats::identity_element<unsigned, std::plus<unsigned>>() == 0u);
+  STATIC_REQUIRE(cats::identity_element<unsigned, std::bit_and<unsigned>>() == UINT_MAX);
+  STATIC_REQUIRE(cats::inverse<std::plus<unsigned>>(1u) == UINT_MAX);
+
+  // a default-constructed operation still answers member queries
+  STATIC_REQUIRE(cats::identity_element<unsigned, queried>() == 1u);
+  STATIC_REQUIRE(cats::inverse<queried>(3u) == 4u);
+}
