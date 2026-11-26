@@ -493,8 +493,6 @@ constexpr T query_inverse(Op const& op, T const& x, std::false_type /* has_inver
   return inverse_traits<Op, T>::inverse(op, x);
 }
 
-// Lets the overloads without an operation parameter, such as power<Op>(x, n),
-// serve operations without state.
 template<class Op>
 constexpr Op make_stateless_operation()
 {
