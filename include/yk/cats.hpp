@@ -469,29 +469,25 @@ struct inverse_traits : detail::builtin_inverse<detail::builtin_operation_with_l
 
 namespace detail {
 
-template<class T, class Op>
-constexpr T query_identity_element(Op const& op, std::true_type /* has_identity_element_query */)
-{
-  return op.query(identity_element_t<T>());
-}
-
-template<class T, class Op>
-constexpr T query_identity_element(Op const& op, std::false_type /* has_identity_element_query */)
-{
-  return identity_element_traits<Op, T>::identity_element(op);
-}
+template<class Op, class T, bool = has_identity_element_query<Op, T>::value>
+struct identity_element_dispatch {
+  static constexpr T identity_element(Op const& op) { return op.query(identity_element_t<T>()); }
+};
 
 template<class Op, class T>
-constexpr T query_inverse(Op const& op, T const& x, std::true_type /* has_inverse_query */)
-{
-  return op.query(inverse_t(), x);
-}
+struct identity_element_dispatch<Op, T, false> {
+  static constexpr T identity_element(Op const& op) { return identity_element_traits<Op, T>::identity_element(op); }
+};
+
+template<class Op, class T, bool = has_inverse_query<Op, T>::value>
+struct inverse_dispatch {
+  static constexpr T inverse(Op const& op, T const& x) { return op.query(inverse_t(), x); }
+};
 
 template<class Op, class T>
-constexpr T query_inverse(Op const& op, T const& x, std::false_type /* has_inverse_query */)
-{
-  return inverse_traits<Op, T>::inverse(op, x);
-}
+struct inverse_dispatch<Op, T, false> {
+  static constexpr T inverse(Op const& op, T const& x) { return inverse_traits<Op, T>::inverse(op, x); }
+};
 
 }  // namespace detail
 
@@ -502,34 +498,22 @@ constexpr T identity_element(Op const& op)
       detail::has_identity_element_query<Op, T>::value || detail::has_identity_element_traits<Op, T>::value,
       "no identity element is declared for the operation on the carrier"
   );
-  return detail::query_identity_element<T>(op, detail::has_identity_element_query<Op, T>());
+  return detail::identity_element_dispatch<Op, T>::identity_element(op);
 }
 
 template<class Op, class T>
 constexpr T inverse(Op const& op, T const& x)
 {
   static_assert(detail::has_inverse_query<Op, T>::value || detail::has_inverse_traits<Op, T>::value, "no inverse is declared for the operation on the carrier");
-  return detail::query_inverse(op, x, detail::has_inverse_query<Op, T>());
+  return detail::inverse_dispatch<Op, T>::inverse(op, x);
 }
 
 namespace detail {
 
 template<class Integer>
-constexpr bool is_negative(Integer n, std::true_type /* is_signed */) noexcept
-{
-  return n < 0;
-}
-
-template<class Integer>
-constexpr bool is_negative(Integer, std::false_type /* is_signed */) noexcept
-{
-  return false;
-}
-
-template<class Integer>
 constexpr bool is_negative(Integer n) noexcept
 {
-  return is_negative(n, std::is_signed<Integer>());
+  return n < Integer(0);
 }
 
 // |n|, computed in the unsigned type so that it is exact for the minimum value.
