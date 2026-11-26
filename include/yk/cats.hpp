@@ -159,26 +159,19 @@ constexpr law_set commutative_group      = magma | laws::associative | laws::uni
 
 }  // namespace structures
 
-// An instance set selects which law declarations are in effect, so that the
-// same operation can be declared differently for different needs. A set may
-// name a fallback, whose declarations it inherits and may only strengthen.
 namespace instances {
 
 // Laws that hold exactly, such as those of unsigned arithmetic.
 struct strict {};
 
-// Additionally, laws that hold only up to overflow or rounding, such as those
-// of signed and floating-point arithmetic.
+// Also laws that hold only up to overflow or rounding.
 struct lenient {
   using fallback = strict;
 };
 
 }  // namespace instances
 
-// Declares the laws of Op on the carrier T under Instances, by deriving from
-// std::integral_constant<law_set, Laws>. Specializations declare laws; the
-// primary template provides those of the standard operations and otherwise
-// inherits from the fallback of Instances, if any.
+// Specializations derive from std::integral_constant<law_set, Laws>; the primary template covers the standard operations, then Instances::fallback.
 template<class Op, class T, class Instances>
 struct operation_laws;
 
@@ -233,8 +226,6 @@ struct is_unpromoted_arithmetic : std::false_type {};
 template<class T>
 struct is_unpromoted_arithmetic<T, true> : std::is_same<decltype(+std::declval<T>()), T> {};
 
-// The standard operation Op is closed on T: it is either Op<T>, or the
-// transparent Op<> and T is not promoted.
 template<class Op, class T, class Operand = typename builtin_operation_of<Op>::operand_type>
 struct is_closed_builtin_operation : std::is_same<Operand, T> {};
 
@@ -320,8 +311,6 @@ struct declared_laws : std::integral_constant<law_set, structures::magma> {};
 template<class Laws>
 struct declared_laws<Laws, true> : std::integral_constant<law_set, Laws::value> {};
 
-// Every instance set in the chain from Instances declares at least the laws of
-// its fallback.
 template<class Op, class T, class Instances, class = void>
 struct strengthens_fallbacks : std::true_type {};
 
@@ -346,26 +335,17 @@ struct checked_operation_laws {
 template<class Op, class T, class Instances = instances::lenient>
 using operation_structure_tag = structure_tag<detail::checked_operation_laws<Op, T, Instances>::value>;
 
-// Query keys. An operation answers identity_element<T>(op) through a const
-// member op.query(identity_element_t<T>{}), and inverse(op, x) through
-// op.query(inverse_t{}, x). A member query takes precedence over the traits
-// below, and can depend on the state of the operation.
+// Keys for op.query(...), which takes precedence over the traits below.
 template<class T>
 struct identity_element_t {};
 
 struct inverse_t {};
 
-// Specializations provide
-//   static constexpr T identity_element(Op const&);
-// returning the identity element of Op on T. The primary template provides
-// those of the standard operations.
+// Specializations provide static constexpr T identity_element(Op const&).
 template<class Op, class T>
 struct identity_element_traits;
 
-// Specializations provide
-//   static constexpr T inverse(Op const&, T const&);
-// returning the inverse of an element under Op. The primary template provides
-// those of the standard operations.
+// Specializations provide static constexpr T inverse(Op const&, T const&).
 template<class Op, class T>
 struct inverse_traits;
 
@@ -543,7 +523,6 @@ constexpr typename std::make_unsigned<Integer>::type magnitude(Integer n) noexce
   return is_negative(n) ? static_cast<unsigned_type>(unsigned_type(0) - static_cast<unsigned_type>(n)) : static_cast<unsigned_type>(n);
 }
 
-// x^n for n >= 1 by repeated squaring, which needs only associativity.
 template<class Op, class T, class Unsigned>
 constexpr T power_positive(Op const& op, T const& x, Unsigned n)
 {
@@ -591,8 +570,7 @@ constexpr T power_impl(structure_tag<structures::group | laws::idempotent>, Op c
 
 }  // namespace detail
 
-// x combined with itself n times. Requires n >= 1, or n >= 0 for a unital
-// operation; a group also accepts negative n.
+// Requires n >= 1, n >= 0 if unital, or any n for a group.
 template<class Instances = instances::lenient, class Op, class T, class Integer>
 constexpr T power(Op const& op, T const& x, Integer n)
 {
