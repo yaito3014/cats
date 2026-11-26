@@ -493,6 +493,15 @@ constexpr T query_inverse(Op const& op, T const& x, std::false_type /* has_inver
   return inverse_traits<Op, T>::inverse(op, x);
 }
 
+// Lets the overloads without an operation parameter, such as power<Op>(x, n),
+// serve operations without state.
+template<class Op>
+constexpr Op make_stateless_operation()
+{
+  static_assert(std::is_default_constructible<Op>::value, "an overload without an operation parameter requires a default-constructible operation");
+  return Op();
+}
+
 }  // namespace detail
 
 template<class T, class Op>
@@ -505,11 +514,23 @@ constexpr T identity_element(Op const& op)
   return detail::query_identity_element<T>(op, detail::has_identity_element_query<Op, T>());
 }
 
+template<class T, class Op>
+constexpr T identity_element()
+{
+  return identity_element<T>(detail::make_stateless_operation<Op>());
+}
+
 template<class Op, class T>
 constexpr T inverse(Op const& op, T const& x)
 {
   static_assert(detail::has_inverse_query<Op, T>::value || detail::has_inverse_traits<Op, T>::value, "no inverse is declared for the operation on the carrier");
   return detail::query_inverse(op, x, detail::has_inverse_query<Op, T>());
+}
+
+template<class Op, class T>
+constexpr T inverse(T const& x)
+{
+  return inverse(detail::make_stateless_operation<Op>(), x);
 }
 
 namespace detail {
@@ -596,6 +617,12 @@ constexpr T power(Op const& op, T const& x, Integer n)
   static_assert(std::is_integral<Integer>::value && !std::is_same<Integer, bool>::value, "power requires an integer exponent");
   static_assert((detail::checked_operation_laws<Op, T, Instances>::value & laws::associative) != 0, "power requires an associative operation");
   return detail::power_impl(operation_structure_tag<Op, T, Instances>(), op, x, n);
+}
+
+template<class Op, class Instances = instances::lenient, class T, class Integer>
+constexpr T power(T const& x, Integer n)
+{
+  return power<Instances>(detail::make_stateless_operation<Op>(), x, n);
 }
 
 }  // namespace cats
